@@ -64,10 +64,13 @@ classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accur
 #%% Train the model
 classifier.fit(X_train, y_train, batch_size=10, epochs=100)
 
-#%%
-# Predicting the Test set results
+#%% Predicting and evaluating the results
 y_pred = classifier.predict(X_test)
 
+#%% Convert probabilities to binary
+y_pred = (y_pred > 0.5)
+
+#%% Assess the results
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, y_pred)
