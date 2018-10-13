@@ -48,21 +48,50 @@ X_test = sc.transform(X_test)
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
 
 #%% Build the model
-classifier = Sequential()
 
-#input layer
-classifier.add(Dense(activation='relu', input_dim=11, units=6, kernel_initializer='uniform'))
-classifier.add(Dense(activation='relu', units=6, kernel_initializer='uniform'))
-classifier.add(Dense(activation='sigmoid', units=1, kernel_initializer='uniform'))
+def build_classifier(optimizer):
+	classifier = Sequential()
+	
+	classifier.add(Dense(activation='relu', input_dim=11, units=6, kernel_initializer='uniform'))
+	classifier.add(Dropout(rate=0.1))
+	classifier.add(Dense(activation='relu', units=6, kernel_initializer='uniform'))
+	classifier.add(Dropout(rate=0.1))
+	classifier.add(Dense(activation='sigmoid', units=1, kernel_initializer='uniform'))
+	
+	classifier.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+	
+	return classifier
 
-#%% Compile model
-classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+	
+#%% Figure out the best hyper parameters for the network
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import GridSearchCV
 
+classifier = KerasClassifier(build_fn=build_classifier)
 
-#%% Train the model
-classifier.fit(X_train, y_train, batch_size=10, epochs=100)
+parameters = {
+		'batch_size': [10,25,32], 
+		'epochs': [100,200,300], 
+		'optimizer': ['adam', 'rmsprop']
+}
+
+grid_search = GridSearchCV(estimator=classifier, param_grid=parameters, cv=10, scoring='accuracy')
+
+#%% Perform training
+grid_search = grid_search.fit(X_train, y_train)
+best_params = grid_search.best_params_
+best_accuracy = grid_search.best_score_
+best_estimator= grid_search.best_estimator_
+
+#%% Inspect the variance and the mean
+from sklearn.model_selection import cross_val_score
+
+accuracies = cross_val_score(estimator=best_estimator, X=X_train, y=y_train, cv=10, n_jobs=-1)
+mean = accuracies.mean()
+variance = accuracies.std()
 
 #%% Predicting and evaluating the results
 y_pred = classifier.predict(X_test)
@@ -74,3 +103,26 @@ y_pred = (y_pred > 0.5)
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, y_pred)
+
+
+
+#%% Make a prediction concerning the following data
+#Account
+# Geography: France
+# Credit Score: 600
+# Gender: Male
+# Age: 40 years old
+# Tenure: 3 years
+# Balance: $60000
+# Number of Products: 2
+# Does this customer have a credit card ? Yes
+# Is this customer an Active Member: Yes
+# Estimated Salary: $50000
+account = [0,0, 600, 1, 40, 3, 60000,2, 1, 1, 50000]
+
+# now we need to scale this value
+account = sc.transform([account])
+account_pred = classifier.predict(account)
+
+
+
